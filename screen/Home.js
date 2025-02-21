@@ -4,9 +4,9 @@ import { View, Text, Button, StyleSheet } from 'react-native';
 const Home = ({ navigation }) => {
   return (
     <View style={styles.container}>
-      {/* <Text style={styles.title}>Welcome to the App</Text> */}
+      <Text style={styles.title}>Welcome</Text>
       <Button 
-        title="go for the  comparison"
+        title="go for the Videos"
         onPress={() => navigation.navigate('Compare')} 
       />
     </View>
@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f8f8',
   },
   title: {
-    fontSize: 24,
+    fontSize: 40,
     fontWeight: 'bold',
     marginBottom: 20,
   },

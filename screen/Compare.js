@@ -1,131 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react'; 
+import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import Video from 'react-native-video';
 import DocumentPicker from 'react-native-document-picker';
 import * as tf from '@tensorflow/tfjs';
 import * as poseDetection from '@tensorflow-models/pose-detection';
-import { comparePoses } from './comparePoses';
-import AntDesign  from 'react-native-vector-icons/AntDesign';
-
-
-
+import { loadPoseModel, extractPoseFromVideo, comparePoses } from '../utils/comparePoses';
+import AntDesign from 'react-native-vector-icons/AntDesign';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import BottomNavBar from '../components/BottomNavBar';
 
 const Compare = () => {
-    const [userVideo, setUserVideo] = useState(null);
-    const [detector, setDetector] = useState(null);
-    const [accuracy, setAccuracy] = useState(null);
-    const [showUserVideo, setShowUserVideo] = useState(false);
+  const [userVideo, setUserVideo] = useState(null);
+  const [detector, setDetector] = useState(null);
+  const [accuracy, setAccuracy] = useState(null);
+  const [showUserVideo, setShowUserVideo] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
-    // Original dance video (stored locally)
-    const originalVideo = require('../assets/original_dance.mp4');
+  const originalVideo = require('../asset/original_dance.mp4');
 
-    useEffect(() => {
-        const loadModel = async () => {
-            await tf.ready();
-            const model = poseDetection.SupportedModels.MoveNet;
-            const poseDetector = await poseDetection.createDetector(model);
-            setDetector(poseDetector);
-        };
-        loadModel();
-    }, []);
-
-    // Function to pick a video
-    const pickVideo = async () => {
-        try {
-            const result = await DocumentPicker.pickSingle({
-                type: [DocumentPicker.types.video],
-            });
-            setUserVideo(result.uri);
-            setShowUserVideo(true); // Hide original and show user video
-        } catch (error) {
-            console.log('Video selection cancelled', error);
-        }
+  useEffect(() => {
+    const loadModel = async () => {
+      await tf.ready();
+      const poseDetector = await loadPoseModel();
+      setDetector(poseDetector);
     };
+    loadModel();
+  }, []);
 
-    const compareVideos = async () => {
-        if (!userVideo) return;
+  const pickVideo = async () => {
+    try {
+      const result = await DocumentPicker.pickSingle({ type: [DocumentPicker.types.video] });
+      setUserVideo(result.uri);
+      setShowUserVideo(true);
+    } catch (error) {
+      console.log('Video selection cancelled', error);
+    }
+  };
 
-        const userPose = await extractPoseFromVideo(userVideo);
-        const originalPose = await extractPoseFromVideo(originalVideo);
+  const compareVideos = async () => {
+    if (!userVideo || !detector) return;
 
-        if (userPose && originalPose) {
-            const score = comparePoses(userPose, originalPose);
-            setAccuracy(score);
-        }
-    };
+    const userPose = await extractPoseFromVideo(userVideo, detector);
+    const originalPose = await extractPoseFromVideo(originalVideo, detector);
 
-    return (
-        <View style={styles.container}>
-            {/* Show Original Video Only If No User Video is Selected */}
-            {!showUserVideo && (
-                <>
-                    <Video source={originalVideo} style={styles.video} controls />
-                    <Text style={styles.label}>Original Dance</Text>
-                </>
-            )}
+    if (userPose && originalPose) {
+      const score = comparePoses(userPose, originalPose);
+      setAccuracy(score);
+      setShowModal(true);
+    } else {
+      console.log('Pose not detected in one or both videos');
+    }
+  };
 
-            {/* User Uploaded Video (Only Shows After Clicking "Try") */}
-            {showUserVideo && userVideo && (
-                <Video source={{ uri: userVideo }} style={styles.video} controls />
-            )}
+  return (
+    <View style={styles.container}>
+      {!showUserVideo && <Video source={originalVideo} style={styles.video} controls />}
+      {showUserVideo && userVideo && <Video source={{ uri: userVideo }} style={styles.video} controls />}
 
-           {/* Try and Compare Buttons Side by Side */}
-           <View style={styles.buttonContainer}>
-                <TouchableOpacity onPress={pickVideo} style={styles.tryButton}>
-                    <AntDesign name="plussquareo" size={30} color="#fff" />
-                    {/* <Text style={styles.tryText}>Try</Text> */}
-                </TouchableOpacity>
-
-                {showUserVideo && (
-                    <TouchableOpacity onPress={compareVideos} style={styles.compareButton}>
-                        <Text style={styles.compareText}>Compare</Text>
-                    </TouchableOpacity>
-                )}
-            </View>
-
-            {/* Accuracy Score */}
-            {accuracy !== null && <Text style={styles.score}>Accuracy: {accuracy}%</Text>}
+      <Modal animationType="slide" transparent={true} visible={showModal} onRequestClose={() => setShowModal(false)}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>Comparison Result</Text>
+            <Text style={styles.modalAccuracy}>Accuracy: {accuracy}%</Text>
+            <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-    );
+      </Modal>
+
+      <BottomNavBar onPickVideo={pickVideo} onCompare={compareVideos} showCompareButton={showUserVideo} />
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-    video: { width: '100%', height: 700,marginTop: -10 },
-    label: { fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
-    
-    buttonContainer: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        marginTop: 10 
-    },
-    
-    tryButton: { 
-        flexDirection: 'row', 
-        width: 50,
-        height: 50,
-        marginBottom: 20,
-        alignItems: 'center', 
-        padding: 10, 
-        backgroundColor: '#3498db', 
-        borderRadius: 10, 
-        marginRight: 10 
-    },
-    
-    tryIcon: { width: 30, height: 30, marginRight: 5 },
-    tryText: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-
-    compareButton: { 
-        padding: 10, 
-        height: 50,
-        marginBottom: 20,
-        backgroundColor: '#e74c3c', 
-        borderRadius: 10 
-    },
-
-    compareText: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-
-    score: { fontSize: 20, fontWeight: 'bold', marginTop: 20, color: 'green' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  video: { width: '100%', height: 700, marginTop: -10 },
+  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' },
+  modalContent: { width: 300, padding: 20, backgroundColor: 'white', borderRadius: 10, alignItems: 'center' },
+  modalText: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
+  modalAccuracy: { fontSize: 18, color: 'green', marginBottom: 20 },
+  closeButton: { padding: 10, backgroundColor: '#e74c3c', borderRadius: 5 },
+  closeButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });
 
 export default Compare;
