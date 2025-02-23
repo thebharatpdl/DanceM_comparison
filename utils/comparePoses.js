@@ -16,7 +16,7 @@ async function extractPoseFromVideo(videoElement, detector) {
   return null;
 }
 
-// Compare two poses using Euclidean distance
+// Compare two poses using Euclidean distance and return a similarity percentage
 function comparePoses(pose1, pose2) {
   const pose1Keypoints = pose1.keypoints.map(k => [k.x, k.y]); // Extract x, y coordinates
   const pose2Keypoints = pose2.keypoints.map(k => [k.x, k.y]);
@@ -28,7 +28,12 @@ function comparePoses(pose1, pose2) {
     return acc + dist;
   }, 0);
 
-  return distance; // The smaller the distance, the more similar the poses
+  // Normalize to a percentage similarity (lower distance means more similar)
+  const maxPossibleDistance = pose1Keypoints.length * 2; // Max distance is roughly 2 pixels per keypoint
+  const similarity = Math.max(0, 100 - (distance / maxPossibleDistance) * 100); // Closer to 100 is better
+
+  return similarity; // The higher the value, the more similar the poses
 }
 
+// Export functions for use in other parts of the app
 export { loadPoseModel, extractPoseFromVideo, comparePoses };
