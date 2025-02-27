@@ -70,7 +70,7 @@ const Compare = () => {
     };
 
     const compareVideos = async () => {
-        console.log("Compare button clicked");
+        console.log("Going Well......");
 
         if (!isModelReady) {
             console.log("Error: Pose detector is not ready yet.");
